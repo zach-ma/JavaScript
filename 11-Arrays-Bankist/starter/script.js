@@ -425,13 +425,13 @@ console.log(movementsDescriptions);
 // The filter Method
 
 // const movements = [200, 450, -400, 3000, -650, -130, 70, 1300];
-const deposits = movements.filter(function (mov) {
+const deposits2 = movements.filter(function (mov) {
   return mov > 0;
 });
-console.log(deposits);
+console.log(deposits2);
 
-const withdrawals = movements.filter(mov => mov < 0); // NOTE arrow
-console.log(withdrawals);
+const withdrawals2 = movements.filter(mov => mov < 0); // NOTE arrow
+console.log(withdrawals2);
 
 ///////////////////////////////////////
 // The reduce Method
@@ -660,6 +660,80 @@ labelBalance.addEventListener('click', function () {
 ///////////////////////////////////////
 // Array Methods Practice
 
+// 1.
+const bankDepositSum = accounts
+  // .map(account => account.movements).flat()
+  .flatMap(account => account.movements)
+  .filter(account => account > 0)
+  .reduce((acc, cur) => acc + cur, 0);
+console.log(bankDepositSum);
+
+// 2.
+// const numDeposits1000 = accounts
+//   .flatMap(account => account.movements)
+//   .filter(account => account > 1000).length;
+const numDeposits1000 = accounts
+  .flatMap(account => account.movements)
+  // NOTE use reduce() as a counter
+  // .reduce((count, cur) => count + Number(cur > 1000), 0);
+  // .reduce((count, cur) => (cur > 1000 ? count + 1 : count), 0);
+  .reduce((count, cur) => (cur > 1000 ? ++count : count), 0);
+console.log(numDeposits1000);
+
+// prefixed ++ operator
+let a = 10;
+console.log(a++);
+console.log(a);
+console.log(++a);
+console.log(a);
+
+// 3.
+// NOTE NOTE NOTE advanced use case of reduce()
+const { deposits, withdrawals } = accounts // NOTE Destructure
+  .flatMap(account => account.movements)
+  .reduce(
+    // Method 1:
+    // (sums, cur) => {
+    //   cur > 0 ? (sums.deposits += cur) : (sums.withdrawals += cur);
+    //   return sums; // NOTE remember to return
+    // },
+
+    // NOTE Method 2: cleaner
+    (sums, cur) => {
+      sums[cur > 0 ? 'deposits' : 'withdrawals'] += cur; // NOTE NOTE NOTE
+      return sums;
+    },
+    { deposits: 0, withdrawals: 0 } // NOTE initilize object
+  );
+console.log(deposits, withdrawals);
+
+// 4.
+// this is a nice title => This Is a Nice Title
+const convertTitleCase = function (title) {
+  const exceptions = ['a', 'an', 'the', 'but', 'or', 'on', 'in', 'with'];
+  return (
+    title
+      .toLowerCase() // do this first
+      .split(' ')
+      // .reduce((list, cur) => {
+      //   if (exceptions.includes(cur)) {
+      //     list.push(cur);
+      //   } else {
+      //     list.push(cur[0].toUpperCase() + cur.slice(1));
+      //   }
+      //   return list;
+      // }, [])
+      .map(word =>
+        exceptions.includes(word) ? word : word[0].toUpperCase() + word.slice(1)
+      )
+      .join(' ')
+  );
+};
+
+console.log(convertTitleCase('this is a nice title'));
+console.log(convertTitleCase('this is a LONG title but not too long'));
+console.log(convertTitleCase('and here is another title with an EXAMPLE'));
+
 ///////////////////////////////////////
 // Coding Challenge #4
 
@@ -668,17 +742,37 @@ Julia and Kate are still studying dogs, and this time they are studying if dogs 
 Eating too much means the dog's current food portion is larger than the recommended portion, and eating too little is the opposite.
 Eating an okay amount means the dog's current food portion is within a range 10% above and 10% below the recommended portion (see hint).
 
-1. Loop over the array containing dog objects, and for each dog, calculate the recommended food portion and add it to the object as a new property. Do NOT create a new array, simply loop over the array. Forumla: recommendedFood = weight ** 0.75 * 28. (The result is in grams of food, and the weight needs to be in kg)
-2. Find Sarah's dog and log to the console whether it's eating too much or too little. HINT: Some dogs have multiple owners, so you first need to find Sarah in the owners array, and so this one is a bit tricky (on purpose) 🤓
-3. Create an array containing all owners of dogs who eat too much ('ownersEatTooMuch') and an array with all owners of dogs who eat too little ('ownersEatTooLittle').
-4. Log a string to the console for each array created in 3., like this: "Matilda and Alice and Bob's dogs eat too much!" and "Sarah and John and Michael's dogs eat too little!"
-5. Log to the console whether there is any dog eating EXACTLY the amount of food that is recommended (just true or false)
+too much /too little / 0.9 < okay < 1.1
+
+1. Loop over the array containing dog objects, and for each dog, calculate
+ the recommended food portion and add it to the object as a new property. 
+ Do NOT create a new array, simply loop over the array. 
+ Forumla: recFood = weight ** 0.75 * 28. (The result is in grams of food, and the weight needs to be in kg)
+
+2. Find Sarah's dog and log to the console whether it's eating too much 
+or too little. HINT: Some dogs have multiple owners, so you first need to 
+find Sarah in the owners array, and so this one is a bit tricky (on purpose) 🤓
+
+3. Create an array containing all owners of dogs who eat 
+too much ('ownersEatTooMuch') and an array with all owners of dogs who eat too little ('ownersEatTooLittle').
+
+4. Log a string to the console for each array created in 3., 
+like this: "Matilda and Alice and Bob's dogs eat too much!" and "Sarah and John and Michael's dogs eat too little!"
+
+5. Log to the console whether there is any dog eating EXACTLY the 
+amount of food that is recommended (just true or false)
+
 6. Log to the console whether there is any dog eating an OKAY amount of food (just true or false)
+
 7. Create an array containing the dogs that are eating an OKAY amount of food (try to reuse the condition used in 6.)
-8. Create a shallow copy of the dogs array and sort it by recommended food portion in an ascending order (keep in mind that the portions are inside the array's objects)
+
+8. Create a shallow copy of the dogs array and sort it by recommended 
+food portion in an ascending order (keep in mind that the portions are inside the array's objects)
 
 HINT 1: Use many different tools to solve these challenges, you can use the summary lecture to choose between them 😉
-HINT 2: Being within a range 10% above and below the recommended portion means: current > (recommended * 0.90) && current < (recommended * 1.10). Basically, the current portion should be between 90% and 110% of the recommended portion.
+HINT 2: Being within a range 10% above and below the recommended portion 
+means: current > (recommended * 0.90) && current < (recommended * 1.10). 
+Basically, the current portion should be between 90% and 110% of the recommended portion.
 
 TEST DATA:
 const dogs = [
@@ -690,3 +784,62 @@ const dogs = [
 
 GOOD LUCK 😀
 */
+
+const dogs = [
+  { weight: 22, curFood: 250, owners: ['Alice', 'Bob'] },
+  { weight: 8, curFood: 200, owners: ['Matilda'] },
+  { weight: 13, curFood: 275, owners: ['Sarah', 'John'] },
+  { weight: 32, curFood: 340, owners: ['Michael'] },
+];
+
+// 1.
+dogs.map(dog => (dog.recFood = dog.weight ** 0.75 * 28));
+console.log(dogs);
+
+// 2.
+const dogSarah = dogs.find(dog => dog.owners.includes('Sarah'));
+console.log(
+  `Sarah's dog is eating too ${
+    dogSarah.curFood > dogSarah.recFood ? 'much' : 'little'
+  }`
+);
+
+// 3.
+const ownersEatTooMuch = dogs
+  .filter(dog => dog.curFood > dog.recFood)
+  .flatMap(dog => dog.owners);
+const ownersEatTooLittle = dogs
+  .filter(dog => dog.curFood < dog.recFood)
+  .flatMap(dog => dog.owners);
+console.log(ownersEatTooMuch);
+console.log(ownersEatTooLittle);
+
+// 4.
+console.log(`${ownersEatTooMuch.join(' and ')}'s dogs eat too much!`);
+console.log(`${ownersEatTooLittle.join(' and ')}'s dogs eat too little!`);
+
+// 5.
+console.log(dogs.some(dog => dog.curFood === dog.recFood));
+
+// 6. Log to the console whether there is any dog eating an OKAY amount of food (just true or false)
+console.log(
+  dogs.some(
+    dog => dog.curFood >= dog.recFood * 0.9 && dog.curFood <= dog.recFood * 1.1
+  )
+);
+
+// 7. Create an array containing the dogs that are eating an OKAY amount of food (try to reuse the condition used in 6.)
+const okay = dogs.filter(
+  dog => dog.curFood >= dog.recFood * 0.9 && dog.curFood <= dog.recFood * 1.1
+);
+console.log(okay);
+
+// 8. Create a shallow copy of the dogs array and sort it by recommended
+// food portion in an ascending order (keep in mind that the portions are inside the array's objects)
+
+// const dogsCopy = dogs.slice();
+// dogsCopy.sort((a, b) => a.curFood - b.curFood);
+// console.log(dogsCopy);
+
+const dogsSorted = dogs.slice().sort((a, b) => a.recFood - b.recFood); //NOTE
+console.log(dogsSorted);
