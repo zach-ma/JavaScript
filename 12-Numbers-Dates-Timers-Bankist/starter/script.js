@@ -98,9 +98,20 @@ const formatMovementDate = function (date, locale) {
   return new Intl.DateTimeFormat(locale).format(date);
 };
 
+const formatCur = function (value, locale, currency) {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: currency, // currency: 'EUR',
+  }).format(value);
+};
+
 const displayMovements = function (account, sort = false) {
   containerMovements.innerHTML = ''; // NOTE innerHTML, clean the container before adding elements
 
+  // DELETE
+  console.log(account);
+
+  // BUG
   const movs = sort
     ? account.movements.slice().sort((a, b) => a - b) // NOTE we should not mutate the original, so we create a shallow copy
     : account.movements;
@@ -112,6 +123,8 @@ const displayMovements = function (account, sort = false) {
 
     const displayDate = formatMovementDate(date, account.locale);
 
+    const formattedMov = formatCur(mov, account.locale, account.currency);
+
     // use template literal for html strings
     const html = `
     <div class="movements__row">
@@ -119,7 +132,7 @@ const displayMovements = function (account, sort = false) {
       i + 1
     } ${type}</div>
       <div class="movements__date">${displayDate}</div>
-      <div class="movements__value">${mov.toFixed(2)}€</div>
+      <div class="movements__value">${formattedMov}</div>
     </div>`;
     containerMovements.insertAdjacentHTML('afterbegin', html); // NOTE
     // containerMovements.insertAdjacentHTML('beforeend', html);
@@ -133,7 +146,20 @@ const calcDisplayBalance = function (account) {
     (acc, cur, i, arr) => acc + cur,
     0
   );
-  labelBalance.textContent = `${account.balance.toFixed(2)}€`;
+
+  // const formattedMov = formatCur(
+  //   account.balance,
+  //   account.locale,
+  //   account.currency
+  // );
+
+  // labelBalance.textContent = `${account.balance.toFixed(2)}€`;
+
+  labelBalance.textContent = formatCur(
+    account.balance,
+    account.locale,
+    account.currency
+  );
 };
 // calcDisplayBalance(currentAccount.movements);
 
@@ -141,12 +167,18 @@ const calcDisplaySummary = function (account) {
   const incomes = account.movements
     .filter(mov => mov > 0)
     .reduce((acc, mov) => acc + mov, 0);
-  labelSumIn.textContent = `${incomes.toFixed(2)}€`;
+  // labelSumIn.textContent = `${incomes.toFixed(2)}€`;
+  labelSumIn.textContent = formatCur(incomes, account.locale, account.currency);
 
   const outcomes = account.movements
     .filter(mov => mov < 0)
     .reduce((acc, mov) => acc + mov, 0);
-  labelSumOut.textContent = `${Math.abs(outcomes).toFixed(2)}€`;
+  // labelSumOut.textContent = `${Math.abs(outcomes).toFixed(2)}€`;
+  labelSumOut.textContent = formatCur(
+    Math.abs(outcomes),
+    account.locale,
+    account.currency
+  );
 
   const interest = account.movements
     .filter(mov => mov > 0)
@@ -157,7 +189,12 @@ const calcDisplaySummary = function (account) {
       return int >= 1; // only interest at least 1 will be added
     })
     .reduce((acc, int) => acc + int, 0);
-  labelSumInterest.textContent = `${interest.toFixed(2)}€`;
+  // labelSumInterest.textContent = `${interest.toFixed(2)}€`;
+  labelSumInterest.textContent = formatCur(
+    interest,
+    account.locale,
+    account.currency
+  );
 };
 // calcDisplaySummary(currentAccount.movements);
 
@@ -180,15 +217,47 @@ const createUsernames = function (accs) {
 createUsernames(accounts);
 console.log(accounts);
 
+const startLogOutTimer = function () {
+  // Set time to 5 minutes
+  let time = 60 * 2; // second based
+
+  // NOTE
+  const tick = function () {
+    const min = String(Math.trunc(time / 60)).padStart(2, '0');
+    const sec = String(time % 60).padStart(2, '0');
+
+    // In each call, print the remaining time to the UI
+    labelTimer.textContent = `${min}:${sec}`;
+
+    // When 0 seconds, stop timer and log out user
+    if (time === 0) {
+      clearInterval(timer);
+      currentAccount = null;
+      containerApp.style.opacity = 0;
+      labelWelcome.textContent = `Log in to get started`;
+    }
+
+    // Decrease 1 sec
+    time--;
+  };
+
+  // NOTE NOTE NOTE to start counting immediately we must separate the function and call it once before the setInterval
+  tick();
+  // Call the timer every second
+  const timer = setInterval(tick, 1000);
+
+  return timer; // NOTE NOTE NOTE we need a timer variable for deleting purpose when a timer already exists
+};
+
 /////////////////////////////////////////////////
 // Event Handlers
-let currentAccount;
+let currentAccount, timer; // NOTE NOTE NOTE timer should be global
 
 // DELETE
-// Fake always logged in
-currentAccount = account1;
-updateUI(currentAccount);
-containerApp.style.opacity = 100;
+// // Fake always logged in
+// currentAccount = account1;
+// updateUI(currentAccount);
+// containerApp.style.opacity = 100;
 
 // // DELETE
 // // experimenting with API
@@ -260,6 +329,10 @@ btnLogin.addEventListener('click', function (e) {
     // Update UI
     updateUI(currentAccount);
 
+    // Reset timer
+    if (timer) clearInterval(timer); // NOTE clear timer if there exists one
+    timer = startLogOutTimer(); // set timer to new timer
+
     console.log('LOG IN');
   }
 });
@@ -294,6 +367,10 @@ btnTransfer.addEventListener('click', function (e) {
 
     // Update UI
     updateUI(currentAccount);
+
+    // Reset timer NOTE need to reset timer if user is active
+    if (timer) clearInterval(timer);
+    timer = startLogOutTimer();
   }
 });
 
@@ -324,6 +401,10 @@ btnClose.addEventListener('click', function (e) {
   inputCloseUsername.value = inputClosePin.value = '';
   inputCloseUsername.blur();
   inputClosePin.blur();
+
+  // Reset timer
+  if (timer) clearInterval(timer);
+  timer = startLogOutTimer();
 });
 
 btnLoan.addEventListener('click', function (e) {
@@ -331,21 +412,28 @@ btnLoan.addEventListener('click', function (e) {
 
   const amount = Math.floor(Number(inputLoanAmount.value));
   if (amount > 0 && currentAccount.movements.some(mov => mov >= 0.1 * amount)) {
-    // Add positive movement
-    currentAccount.movements.push(amount);
-    currentAccount.movementsDates.push(new Date().toISOString());
+    // Add timer
+    setTimeout(function () {
+      // Add positive movement
+      currentAccount.movements.push(amount);
+      currentAccount.movementsDates.push(new Date().toISOString());
 
-    updateUI(currentAccount);
+      updateUI(currentAccount);
+    }, 2000);
   }
 
   inputLoanAmount.value = '';
   inputLoanAmount.blur();
+
+  // Reset timer
+  if (timer) clearInterval(timer);
+  timer = startLogOutTimer();
 });
 
 let sorted = false; // NOTE
 btnSort.addEventListener('click', function (e) {
   e.preventDefault();
-  displayMovements(currentAccount.movements, !sorted);
+  displayMovements(currentAccount, !sorted);
   sorted = !sorted;
 });
 
@@ -541,3 +629,47 @@ const calcDaysPassed = (date1, date2) =>
 
 const days1 = calcDaysPassed(new Date(2037, 3, 4), new Date(2037, 3, 4));
 console.log(days1);
+
+///////////////////////////////////////
+// Internationalizing Numbers (Intl)
+const num2 = 3884764.23;
+
+const options = {
+  style: 'currency',
+  // style: 'unit',
+  // style: 'percent',
+  // unit: 'mile-per-hour',
+  unit: 'celsius',
+  currency: 'EUR',
+  // useGrouping: false,
+};
+
+console.log('US:      ', new Intl.NumberFormat('en-US', options).format(num2));
+console.log('Germany: ', new Intl.NumberFormat('de-DE', options).format(num2));
+console.log('Syria:   ', new Intl.NumberFormat('ar-SY', options).format(num2));
+console.log(
+  navigator.language,
+  new Intl.NumberFormat(navigator.language, options).format(num)
+);
+
+///////////////////////////////////////
+// Timers
+
+// setTimeout
+const ingredients = ['olives'];
+// const ingredients = ['olives', 'spinach'];
+
+const pizzaTimer = setTimeout(
+  (ing1, ing2) => console.log(`Here is your pizza🍕 with ${ing1} and ${ing2}`),
+  3000, // 3 secs later
+  // all the lines after time are parameters
+  ...ingredients
+);
+console.log('Waiting...');
+if (ingredients.includes('spinach')) clearTimeout(pizzaTimer);
+
+// setInterval
+// setInterval(function () {
+//   const now = new Date();
+//   console.log(now);
+// }, 1000); // every 1 seconds
