@@ -6,6 +6,11 @@ const btnCloseModal = document.querySelector('.btn--close-modal');
 const btnsOpenModal = document.querySelectorAll('.btn--show-modal');
 const btnScrollTo = document.querySelector('.btn--scroll-to'); // class name => .
 const section1 = document.querySelector('#section--1'); // id: section--1 => #
+const tabs = document.querySelectorAll('.operations__tab');
+const tabsContainer = document.querySelector('.operations__tab-container');
+const tabsContent = document.querySelectorAll('.operations__content');
+const links = document.querySelector('.nav__links');
+const nav = document.querySelector('.nav');
 
 ///////////////////////////////////////
 // Modal window
@@ -90,7 +95,7 @@ console.log(document.querySelectorAll('.nav__link'));
 // NOTE events delegation: put the eventListener on a common parent of all the elements that we are interested in, 'links' in this case
 // 1. Add event listener to common parent element
 // 2. Determine what element originated the event
-document.querySelector('.nav__links').addEventListener('click', function (e) {
+links.addEventListener('click', function (e) {
   e.preventDefault();
 
   // console.log(e);
@@ -110,11 +115,8 @@ document.querySelector('.nav__links').addEventListener('click', function (e) {
   }
 });
 
+///////////////////////////////////////
 // Tabbed component
-const tabs = document.querySelectorAll('.operations__tab');
-const tabsContainer = document.querySelector('.operations__tab-container');
-const tabsContent = document.querySelectorAll('.operations__content');
-
 tabsContainer.addEventListener('click', function (e) {
   e.preventDefault();
   console.log(e.target);
@@ -153,6 +155,243 @@ tabsContainer.addEventListener('click', function (e) {
   // e.target.classList.add('operations__tab--active');
 });
 
+///////////////////////////////////////
+// Menu fade anivation
+// NOTE
+const handleHover = function (e) {
+  if (e.target.classList.contains('nav__link')) {
+    const link = e.target;
+    // select sibling elements (siblings and logo)
+    const siblings = link.closest('.nav').querySelectorAll('.nav__link'); // use .closest() to make this function more robust NOTE
+    const logo = link.closest('.nav').querySelector('img');
+    siblings.forEach(el => {
+      // check the element is not the link it self, since the siblings contain the link it self NOTE
+      if (el !== link) {
+        el.style.opacity = this;
+      }
+    });
+    logo.style.opacity = this;
+  }
+};
+
+// does not work:
+// nav.addEventListener('mouseover', handleHover('mouseover', 0.5));
+// nav.addEventListener('mouseout', handleHover('mouseover', 1));
+// nav.addEventListener('mouseover', function (e) {
+//   handleHover(e, 0.5);
+// });
+// NOTE note the usage of bind method
+nav.addEventListener('mouseover', handleHover.bind(0.5));
+nav.addEventListener('mouseout', handleHover.bind(1));
+
+///////////////////////////////////////
+// Sticky navigation: use scroll
+
+// const initialCoords = section1.getBoundingClientRect();
+// console.log(initialCoords);
+
+// // will be triggered every time we scroll the page
+// // NOTE NOT efficient to use scroll !!!
+// window.addEventListener('scroll', function () {
+//   // console.log(window.scrollY); // UNCOMMENT to see effects
+
+//   // add sticky class as soon as reach section 1
+//   // NOTE vertical position > distance of section 1 from the top
+//   if (window.scrollY > initialCoords.top) {
+//     nav.classList.add('sticky');
+//   } else {
+//     nav.classList.remove('sticky');
+//   }
+// });
+
+///////////////////////////////////////
+// NOTE Sticky navigation: Intersection Observer API
+
+// NOTE obsCallback funciton will be called each time that the observed element/target element(i.e. section1)
+//     is intersecting the root element at the threshold that we defined
+// will be called whenver we scroll up or down
+// entries is an array of threshold entries
+
+// const obsCallback = function (entries, observer) {
+//   entries.forEach(entry => {
+//     console.log(entry);
+//   });
+// };
+// const obsOptions = {
+//   root: null, // observe our target element intersect with the whole view port
+//   // threshold: 0.1, // NOTE % of intersection which the observer callback will be called
+//   threshold: [0, 0.2],
+//   // NOTE 0%: callback will trigger each time that the target element moves ##completely## out of the view, or as soon as it enters the view
+// };
+// const observer = new IntersectionObserver(obsCallback, obsOptions);
+// observer.observe(section1);
+
+const header = document.querySelector('.header');
+const navHeight = nav.getBoundingClientRect().height;
+// console.log(navHeight);
+
+const stickyNav = function (entries) {
+  const [entry] = entries; // NOTE destructuring, get the first entry, same as entry = 0
+  // console.log(entry);
+  if (!entry.isIntersecting) nav.classList.add('sticky');
+  else nav.classList.remove('sticky');
+};
+
+const headerObserver = new IntersectionObserver(stickyNav, {
+  root: null,
+  threshold: 0,
+  rootMargin: `-${navHeight}px`, // NOTE nav appears 90px before the threshold is reached
+});
+headerObserver.observe(header);
+
+///////////////////////////////////////
+// Reveal sections
+const allSections = document.querySelectorAll('.section');
+const revealSection = function (entries, observer) {
+  const [entry] = entries;
+  // console.log(entry);
+  // console.log(entry.target);
+  if (!entry.isIntersecting) return;
+  entry.target.classList.remove('section--hidden');
+
+  observer.unobserve(entry.target); //NOTE unobserve once we observed it to make it more efficient
+};
+
+const sectionObserver = new IntersectionObserver(revealSection, {
+  root: null,
+  threshold: 0.15,
+});
+
+// hide all sections
+allSections.forEach(function (section) {
+  sectionObserver.observe(section);
+  section.classList.add('section--hidden');
+});
+
+///////////////////////////////////////
+// Lazy loading images
+const imgTargets = document.querySelectorAll('img[data-src]'); // NOTE select all the img with property data-src
+console.log(imgTargets);
+
+const loadImg = function (entries, observer) {
+  const [entry] = entries;
+  console.log(entry);
+  if (!entry.isIntersecting) return;
+
+  // NOTE Replace src with data-src
+  entry.target.src = entry.target.dataset.src; // NOTE will emit load event once finished loading the img
+
+  // entry.target.classList.remove('lazy-img'); // should not remove it right away
+  entry.target.addEventListener('load', function () {
+    entry.target.classList.remove('lazy-img'); // NOTE should remove it after loading is done !!!
+  });
+
+  observer.unobserve(entry.target);
+};
+
+const imgObserver = new IntersectionObserver(loadImg, {
+  root: null,
+  threshold: 0,
+  rootMargin: '200px', // NOTE load it a little bit before the threshold is reached
+});
+
+imgTargets.forEach(img => imgObserver.observe(img));
+
+///////////////////////////////////////
+// Slider
+const sliders = function () {
+  const slides = document.querySelectorAll('.slide');
+  const btnLeft = document.querySelector('.slider__btn--left');
+  const btnRight = document.querySelector('.slider__btn--right');
+  let curSlide = 0;
+  const maxSlide = slides.length;
+  const dotContainer = document.querySelector('.dots');
+
+  {
+    /* <button class="dots__dot dots__dot--active" data-slide="1"></button> */
+  }
+
+  // DELETE
+  // slider.style.transform = 'scale(0.3) translateX(-800px)';
+  // slider.style.overflow = 'visible'; // to show other slides
+  const goToSlide = function (slide) {
+    slides.forEach(
+      (s, i) => (s.style.transform = `translateX(${(i - slide) * 100}%)`) // NOTE nice trick !
+    );
+  };
+
+  const createDots = function () {
+    slides.forEach((_, i) => {
+      dotContainer.insertAdjacentHTML(
+        'beforeend',
+        `<button class="dots__dot" data-slide="${i + 1}"></button>`
+      );
+    });
+  };
+
+  const activateDot = function (slide) {
+    document
+      .querySelectorAll('.dots__dot')
+      .forEach(dot => dot.classList.remove('dots__dot--active'));
+
+    document
+      .querySelector(`.dots__dot[data-slide="${slide + 1}"]`) // NOTE select with data-slide attribute
+      .classList.add('dots__dot--active');
+  };
+
+  // NOTE use event delegation
+  dotContainer.addEventListener('click', function (e) {
+    console.log(e.target);
+    console.log(e.target.dataset.slide);
+    if (e.target.classList.contains('dots__dot')) {
+      // console.log('DOT');
+      const { slide } = e.target.dataset; // NOTE destructuring
+      goToSlide(slide - 1);
+      activateDot(slide - 1);
+    }
+  });
+
+  // NOTE notice how clean the code is !!!
+  // NOTE Next slide
+  const nextSlide = function () {
+    if (curSlide === maxSlide - 1) {
+      curSlide = 0;
+    } else {
+      curSlide++;
+    }
+    goToSlide(curSlide);
+    activateDot(curSlide);
+  };
+
+  const prevSlide = function () {
+    if (curSlide === 0) {
+      curSlide = maxSlide - 1;
+    } else {
+      curSlide--;
+    }
+    goToSlide(curSlide);
+    activateDot(curSlide);
+  };
+
+  // initialize:
+  const init = function () {
+    createDots();
+    goToSlide(0);
+    activateDot(0);
+  };
+
+  init();
+  btnRight.addEventListener('click', nextSlide);
+  btnLeft.addEventListener('click', prevSlide);
+
+  // NOTE control by pressing keyboard
+  document.addEventListener('keydown', function (e) {
+    console.log(e.key);
+    if (e.key === 'ArrowRight') nextSlide();
+    e.key === 'ArrowLeft' && prevSlide(); // short circuiting
+  });
+};
+sliders();
 ///////////////////////////////////////
 ///////////////////////////////////////
 ///////////////////////////////////////
@@ -385,3 +624,19 @@ console.log([...h1.parentElement.children]);
 });
 
 */
+
+///////////////////////////////////////
+// Lifecycle DOM events
+document.addEventListener('DOMContentLoaded', function (e) {
+  console.log('HTML parsed and DOM tree built!', e);
+});
+
+window.addEventListener('load', function (e) {
+  console.log('Page fully loaded', e);
+});
+
+window.addEventListener('beforeunload', function (e) {
+  e.preventDefault();
+  console.log(e);
+  // e.returnValue = ''; // NOTE to display a leaving confirmation
+});
